@@ -17,7 +17,7 @@ public class Z80 {
 
         opcodeMap[0x00] = this::NOP;
         opcodeMap[0x01] = this::LD_BC_nn;
-        opcodeMap[0x02] = this::LD_BC_A;
+        opcodeMap[0x02] = this::LDBCmA;
 
         opcodeMap[0xFA] = this::LDAmm;
 
@@ -32,7 +32,7 @@ public class Z80 {
     public void tick() {
         int opcode = mmu.readByte(registers.pc++)&0xFF;
         opcodeMap[opcode].execute();
-        registers.pc &= 65535;
+        registers.pc &= 0xFFFF;
         this.clock_m += registers.m;
         this.clock_t += registers.t;
     }
@@ -274,6 +274,14 @@ public class Z80 {
     public void ADDn() { int result = registers.a + mmu.readByte(registers.pc); registers.pc++; fz(registers.a); if(result > 0xFF) {registers.f|=0x10;} registers.a = result&0xFF; registers.m = 2; registers.t = 8; }
     public void ADDHLBC() { int hl = registers.getHL(); hl+=registers.getBC(); if(hl>0xFFFF) { registers.f |= 0x10;} else {registers.f&=0xEF;} registers.h = (hl>>8)&0xFF; registers.l=hl&255; registers.m = 3; registers.t = 12;}
 
+    public void ADDHLDE() { int hl = registers.getHL(); hl += registers.getDE(); if(hl>0xFFFF) { registers.f |= 0x10;} else { registers.f &=0xEF;} registers.h = (hl>>8)&0xFF; registers.l = hl&0xFF; registers.m = 3; registers.t = 12;}
+
+    public void ADDHLHL() {int hl = registers.getHL(); hl += registers.getHL(); if(hl>0xFFFF) {registers.f |= 0x10;} else { registers.f&=0xEF;}  registers.h=(hl>>8)&0xFF; registers.l = hl&0xFF; registers.m = 3; registers.t = 12;}
+
+    public void ADDHLSP() {int hl = registers.getHL(); hl += registers.sp; if(hl>0xFFFF) {registers.f |= 0x10;} else { registers.f&=0xEF;}  registers.h=(hl>>8)&0xFF; registers.l = hl&0xFF; registers.m = 3; registers.t = 12;}
+
+    public void ADDSPn() { int i = mmu.readByte(registers.pc); if(i>127){i=-((~i+1)&0xFF);} registers.pc++; registers.sp+=i; registers.m = 4; registers.t = 16;}
+
 
     //Helper Function
     public void fz(int i, int as) {
@@ -350,22 +358,170 @@ public class Z80 {
     }
 
     private static class MMU {
+        private int inBios;
+
+        public int[] bios;
+        public int[] rom;
+        public int[] wram;
+        public int[] eram;
+        public int[] zram;
+
+        MMU() {
+            inBios = 1;
+        }
+
+
 
         public int readByte(int addr) {
-            return 0;
+            switch(addr&0xF000) {
+                //BIOS
+                case 0x0000:
+                    if(inBios==1) {
+                        if(addr < 0x0100) {
+                            return bios[addr];
+                        }
+                    }
+
+                    return rom[addr];
+                    // ROM0
+                case 0x1000:
+                case 0x2000:
+                case 0x3000:
+                        return rom[addr];
+                //ROM 1
+                case 0x4000:
+                case 0x5000:
+                case 0x6000:
+                case 0x7000:
+                    return rom[addr];
+                //GPU VRAM
+                case 0x8000:
+                case 0x9000:
+                    return 0; // TODO return gpu VRAM
+                case 0xA000:
+                case 0xB000:
+                    return eram[addr&0x1FFF];
+                //Working RAM
+                case 0xC000:
+                case 0xD000:
+                    return wram[addr&0x1FFF];
+
+                //Shadow WRAM
+                case 0xE000:
+                    return wram[addr&0x1FFF];
+                // WRAM shadow, I/O, ZeroPage
+                case 0xF000:
+                    switch(addr&0x0F00) {
+                        // Working RAM shadow
+                        case 0x000: case 0x100: case 0x200: case 0x300:
+                        case 0x400: case 0x500: case 0x600: case 0x700:
+                        case 0x800: case 0x900: case 0xA00: case 0xB00:
+                        case 0xC00: case 0xD00:
+                            return wram[addr & 0x1FFF];
+
+                        //Graphics object attribute mem
+                        // OAM is 160 bytes, remaing bytes read as 0
+                        case 0xE00:
+                            if(addr < 0xFEA0) {
+                                //TODO return GPU OAM
+                            } else {
+                                return 0;
+                            }
+                        case 0xF00:
+                            if(addr >= 0xFF80) {
+                                return zram[addr&0x7F];
+                            } else {
+                                //TODO I/O handling
+                                return 0;
+                            }
+
+                    }
+                default:
+                    throw new UnsupportedOperationException();
+            }
+        }
+
+
+        public void writeByte(int addr, int val) {
+            switch(addr&0xF000) {
+                //BIOS
+                case 0x0000:
+                    if(inBios==1) {
+                        if(addr < 0x0100) {
+                            bios[addr] = val;
+                        }
+                    }
+
+                    rom[addr] = val;
+                // ROM0
+                case 0x1000:
+                case 0x2000:
+                case 0x3000:
+                    rom[addr] = val;
+                //ROM 1
+                case 0x4000:
+                case 0x5000:
+                case 0x6000:
+                case 0x7000:
+                    rom[addr] = val;
+                //GPU VRAM
+                case 0x8000:
+                case 0x9000:
+                    // TODO write gpu VRAM
+                case 0xA000:
+                case 0xB000:
+                    eram[addr&0x1FFF] = val;
+                //Working RAM
+                case 0xC000:
+                case 0xD000:
+                    wram[addr&0x1FFF] = val;
+
+                //Shadow WRAM
+                case 0xE000:
+                    wram[addr&0x1FFF] = val;
+                // WRAM shadow, I/O, ZeroPage
+                case 0xF000:
+                    switch(addr&0x0F00) {
+                        // Working RAM shadow
+                        case 0x000: case 0x100: case 0x200: case 0x300:
+                        case 0x400: case 0x500: case 0x600: case 0x700:
+                        case 0x800: case 0x900: case 0xA00: case 0xB00:
+                        case 0xC00: case 0xD00:
+                            wram[addr & 0x1FFF] = val;
+
+                        //Graphics object attribute mem
+                        // OAM is 160 bytes, remaing bytes read as 0
+                        case 0xE00:
+                            if(addr < 0xFEA0) {
+                                //TODO write GPU OAM
+                            } else {
+
+                            }
+                        case 0xF00:
+                            if(addr >= 0xFF80) {
+                                zram[addr&0x7F] = val;
+                            } else {
+                                //TODO I/O handling
+                            }
+
+                    }
+                default:
+                    throw new UnsupportedOperationException();
+            }
+
+
         }
 
         public int readWord(int addr) {
-            return 0;
+            return readByte(addr) + (readByte(addr+1)<<8);
         }
 
-        public void writeByte(int addr, int val) {
 
 
-        }
 
         public void writeWord(int addr, int val) {
-
+            writeByte(addr, val&0xFF); // low
+            writeByte(addr+1, (val>>8)&0xFF); // high
         }
 
     }

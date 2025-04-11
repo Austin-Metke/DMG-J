@@ -4,7 +4,11 @@ public class Main {
 
     Z80 cpu = new Z80();
 
+    cpu.reset();
 
+    while(true) {
+        cpu.tick();
+    }
 
 
     }
