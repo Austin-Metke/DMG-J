@@ -1,15 +1,21 @@
-# Game Boy Emulator
+# DMG-J
 
-A Game Boy emulator written in Java. Supports loading ROMs, executing CPU instructions, handling memory management, GPU scanline rendering, sprite display, timer emulation, and interactive debugging.
+A Game Boy emulator written in Java. Supports loading ROMs, executing CPU instructions, handling memory management, GPU scanline rendering, sprite rendering (broken at the moment), and (partially) interactive debugging.
 
 ## Features
 
-✅ Partial 8-bit Z80 CPU emulation (`Z80.java`)
-✅ Instruction decoding (`CBOpcodeInfo.java`, `OpcodeInfo.java`)
-✅ ROM loading and memory mapping (`ROMLoader.java`, `MMU.java`)
-✅ GPU with scanline and sprite rendering (sprite rendering currently broken) (`GPU.java`, `Sprite.java`)
-✅ Joypad input handling (Broken) (`Joypad.java`)
-✅ Debugger with UI (`DebuggerUI.java`, `DebuggerController.java`)
+ Partial 8-bit Z80 CPU emulation (`Z80.java`)
+ 
+ Instruction decoding (`CBOpcodeInfo.java`, `OpcodeInfo.java`)
+ 
+ ROM loading and memory mapping (`ROMLoader.java`, `MMU.java`)
+ 
+ GPU with scanline and sprite rendering (sprite rendering currently broken) (`GPU.java`, `Sprite.java`)
+ 
+ Joypad input handling (Broken) (`Joypad.java`)
+
+
+ Debugger with UI (`DebuggerUI.java`, `DebuggerController.java`)
 
 ## Getting Started
 
@@ -26,15 +32,17 @@ A Game Boy emulator written in Java. Supports loading ROMs, executing CPU instru
 - Java 8 or newer
 - A valid Game Boy ROM file (`.gb`)
 
-## TODO
-- [~] Memory Viewer/Debugger (Crude)
-- [ ] Functional UI
+## In Progress
+- [ ] Load games without use of BIOS
 - [ ] Input Handling
+- [ ] Implement all opcodes
 - [ ] Sprite Rendering (Broken)
-- [ ] Implement all CB opcodes
 - [ ] Interrupt Handling (Broken)
+
+## TODO
+- [ ] Memory Viewer/Debugger (Crude)
+- [ ] Functional UI
 - [ ] Audio emulation
 - [ ] Save states
-- [✔] BIOS support
-- [ ] Load games without use of BIOS
+- [x] BIOS support
 - [ ] Link cable emulation
